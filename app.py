@@ -251,13 +251,13 @@ if uploaded_file is not None:
         if predictions:
 
             primary = predictions[0]
-    
-            # If confidence too low → show message instead
-            if primary[1] < 0.60:
-                st.warning("⚠ The model is not confident. Please upload a clear tomato leaf image.")
+            secondary = predictions[1:]
+
+            # 🔴 Confidence validation
+            if primary[1] < 0.65:
+                st.warning("⚠ This image does not appear to be a clear tomato leaf. Please upload a valid leaf image.")
                 st.stop()
 
-            secondary = predictions[1:]
 
             # -------- PRIMARY GLASS CARD --------
             confidence_color = (
