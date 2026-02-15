@@ -47,8 +47,7 @@ label_columns = [
     "Magnesium Deficiency",
     "Nitrogen Deficiency",
     "Pottassium Deficiency",
-    "Spotted Wilt Virus",
-    "Not a Tomato Leaf"
+    "Spotted Wilt Virus"
 ]
 
 translations = {
@@ -240,101 +239,97 @@ if uploaded_file is not None:
 
     with col2:
 
-        # Animated Loading Spinner
-        with st.spinner(T["analyzing"]):
-            predictions = predict_image(image)
-
+        # Resolution validation first
         if image.size[0] < 200 or image.size[1] < 200:
             st.error("Please upload a clear high-resolution tomato leaf image.")
             st.stop()
 
-        if predictions:
+        with st.spinner(T["analyzing"]):
+            predictions = predict_image(image)
 
-            primary = predictions[0]
-            secondary = predictions[1:]
+        if not predictions:
+            st.info("No disease detected with sufficient confidence.")
+            st.stop()
 
-            # 🔴 Confidence validation
-            if primary[1] < 0.65:
-                st.warning("⚠ This image does not appear to be a clear tomato leaf. Please upload a valid leaf image.")
-                st.stop()
+        primary = predictions[0]
+        secondary = predictions[1:]
+
+        # Confidence validation
+        if primary[1] < 0.65:
+            st.warning("⚠ This image does not appear to be a clear tomato leaf.")
+            st.stop()
+
+        # -------- PRIMARY GLASS CARD --------
+        confidence_color = (
+            "#22c55e" if primary[1] > 0.80
+            else "#facc15" if primary[1] > 0.65
+            else "#ef4444"
+        )  
+
+        st.markdown(
+            f"""
+            <div class="glass-card primary-disease">
+                <h2>{T['primary']}</h2>
+                <h1>{primary[0]}</h1>
+                <h3 style="color:{confidence_color}; font-weight:600;">
+                    {primary[1]*100:.2f}% {T['confidence']}
+                </h3>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # PRIMARY DISEASE INFO
+        with st.expander(f"{T['disease_info']} - {primary[0]}", expanded=False):
+            st.markdown(f"### {T['description']}")
+            st.write(disease_info[primary[0]]["info"])
+
+            st.markdown(f"### {T['treatment']}")
+            st.write(disease_info[primary[0]]["treatment"])
+
+            st.markdown(f"### {T['spray']}")
+            st.write(disease_info[primary[0]]["spray"])
+
+        # -------- SECONDARY --------
+        if secondary:
+            st.markdown(f"### {T['secondary']}")
+
+            for disease, prob in secondary:
+
+                # Secondary Card
+                st.markdown(
+                    f"""
+                    <div class="glass-card secondary-disease">
+                        <h4>{disease}</h4>
+                        <p>{prob*100:.2f}% {T['confidence']}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                # Expandable Info for EACH secondary
+                with st.expander(f"{T['more_about']} {disease}", expanded=False):
+
+                    st.markdown(f"### {T['description']}")
+                    st.write(disease_info[disease]["info"])
+
+                    st.markdown(f"### {T['treatment']}")
+                    st.write(disease_info[disease]["treatment"])
+
+                    st.markdown(f"### {T['spray']}")
+                    st.write(disease_info[disease]["spray"])
 
 
-            # -------- PRIMARY GLASS CARD --------
-            confidence_color = (
-                "#22c55e" if primary[1] > 0.80
-                else "#facc15" if primary[1] > 0.65
-                else "#ef4444"
-            )
-
-
-            st.markdown(
-                f"""
-                <div class="glass-card primary-disease">
-                    <h2>{T['primary']}</h2>
-                    <h1>{primary[0]}</h1>
-                    <h3 style="color:{confidence_color}; font-weight:600;">
-                        {primary[1]*100:.2f}% {T['confidence']}
-                    </h3>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-
-            # PRIMARY DISEASE INFO
-            with st.expander(f"{T['disease_info']} - {primary[0]}", expanded=False):
-                st.markdown(f"### {T['description']}")
-                st.write(disease_info[primary[0]]["info"])
-
-                st.markdown(f"### {T['treatment']}")
-                st.write(disease_info[primary[0]]["treatment"])
-
-                st.markdown(f"### {T['spray']}")
-                st.write(disease_info[primary[0]]["spray"])
-
-            # -------- SECONDARY --------
-            if secondary:
-                st.markdown(f"### {T['secondary']}")
-
-                for disease, prob in secondary:
-
-                    # Secondary Card
-                    st.markdown(
-                        f"""
-                        <div class="glass-card secondary-disease">
-                            <h4>{disease}</h4>
-                            <p>{prob*100:.2f}% {T['confidence']}</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-
-                    # Expandable Info for EACH secondary
-                    with st.expander(f"{T['more_about']} {disease}", expanded=False):
-
-                        st.markdown(f"### {T['description']}")
-                        st.write(disease_info[disease]["info"])
-
-                        st.markdown(f"### {T['treatment']}")
-                        st.write(disease_info[disease]["treatment"])
-
-                        st.markdown(f"### {T['spray']}")
-                        st.write(disease_info[disease]["spray"])
-
-
-            # -------- PDF --------
-            if st.checkbox(T["download"]):
-                pdf_path = generate_pdf(predictions)
-                with open(pdf_path, "rb") as f:
-                    st.download_button(
-                        label=T["download_btn"],
-                        data=f,
-                        file_name="Tomato_Disease_Report.pdf",
-                        mime="application/pdf"
-                    )
-
-        else:
-            st.success(T["healthy"])
+        # -------- PDF --------
+        if st.checkbox(T["download"]):
+            pdf_path = generate_pdf(predictions)
+            with open(pdf_path, "rb") as f:
+                st.download_button(
+                    label=T["download_btn"],
+                    data=f,
+                    file_name="Tomato_Disease_Report.pdf",
+                    mime="application/pdf"
+                )
 
 
 st.markdown("""
