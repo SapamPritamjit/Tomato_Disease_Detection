@@ -37,7 +37,7 @@ load_css()
 # CONFIG
 # -----------------------
 IMG_SIZE = 300
-THRESHOLD = 0.40
+THRESHOLD = 0.60
 
 label_columns = [
     "Early blight",
@@ -47,7 +47,8 @@ label_columns = [
     "Magnesium Deficiency",
     "Nitrogen Deficiency",
     "Pottassium Deficiency",
-    "Spotted Wilt Virus"
+    "Spotted Wilt Virus",
+    "Not a Tomato Leaf"
 ]
 
 translations = {
@@ -243,17 +244,28 @@ if uploaded_file is not None:
         with st.spinner(T["analyzing"]):
             predictions = predict_image(image)
 
+        if image.size[0] < 200 or image.size[1] < 200:
+            st.error("Please upload a clear high-resolution tomato leaf image.")
+            st.stop()
+
         if predictions:
 
             primary = predictions[0]
+    
+            # If confidence too low → show message instead
+            if primary[1] < 0.60:
+                st.warning("⚠ The model is not confident. Please upload a clear tomato leaf image.")
+                st.stop()
+
             secondary = predictions[1:]
 
             # -------- PRIMARY GLASS CARD --------
             confidence_color = (
-            "#22c55e" if primary[1] > 0.75
-                else "#facc15" if primary[1] > 0.50
+                "#22c55e" if primary[1] > 0.80
+                else "#facc15" if primary[1] > 0.65
                 else "#ef4444"
             )
+
 
             st.markdown(
                 f"""
