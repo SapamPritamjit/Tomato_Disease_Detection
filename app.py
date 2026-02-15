@@ -10,6 +10,17 @@ from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import letter
 import tempfile
+import os
+from dotenv import load_dotenv
+import gdown
+
+load_dotenv()
+
+FILE_ID = os.getenv("TOMATO_MODEL_ID")
+if not FILE_ID:
+    st.error("Model ID not found. Please set TOMATO_MODEL_ID in Streamlit Secrets.")
+    st.stop()
+MODEL_PATH = "model.keras"
 
 # -----------------------
 # PAGE CONFIG
@@ -22,69 +33,6 @@ def load_css():
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 load_css()
-
-# -----------------------
-# THEME INITIALIZATION
-# -----------------------
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
-
-theme_toggle = st.sidebar.toggle(
-    "🌗 Dark Mode",
-    value=(st.session_state.theme == "dark")
-)
-
-st.session_state.theme = "dark" if theme_toggle else "light"
-
-# Theme colors
-if st.session_state.theme == "dark":
-    navbar_bg = "rgba(15, 23, 42, 0.85)"
-    navbar_text = "white"
-    body_bg = "linear-gradient(-45deg, #0f172a, #0b1120, #111827, #0f172a)"
-    body_text = "white"
-else:
-    navbar_bg = "rgba(255, 255, 255, 0.85)"
-    navbar_text = "#111827"
-    body_bg = "linear-gradient(135deg, #f9fafb, #e5e7eb)"
-    body_text = "#111827"
-
-# Apply background
-st.markdown(f"""
-<style>
-[data-testid="stAppViewContainer"] {{
-    background: {body_bg};
-    color: {body_text};
-    transition: background 0.4s ease, color 0.4s ease;
-}}
-</style>
-""", unsafe_allow_html=True)
-
-# -----------------------
-# FLOATING NAVBAR
-# -----------------------
-st.markdown(f"""
-<div style="
-    position:fixed;
-    top:0;
-    left:0;
-    width:100%;
-    padding:15px 30px;
-    backdrop-filter: blur(14px);
-    background:{navbar_bg};
-    color:{navbar_text};
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    z-index:999;
-    font-weight:600;
-">
-    <div>🍅 AgroScan AI</div>
-    <div>{"🌙 Dark Mode" if st.session_state.theme=="dark" else "☀️ Light Mode"}</div>
-</div>
-""", unsafe_allow_html=True)
-
-# Add spacing so content isn't hidden behind navbar
-st.markdown("<div style='height:90px;'></div>", unsafe_allow_html=True)
 
 # CONFIG
 # -----------------------
@@ -199,7 +147,10 @@ disease_info = {
 # -----------------------
 @st.cache_resource
 def load_model():
-    return tf.keras.models.load_model("tomato_multilabel_final.keras")
+    if not os.path.exists(MODEL_PATH):
+        url = f"https://drive.google.com/uc?id={FILE_ID}"
+        gdown.download(url, MODEL_PATH, quiet=False)
+    return tf.keras.models.load_model(MODEL_PATH)
 
 model = load_model()
 
@@ -246,7 +197,31 @@ def generate_pdf(predictions):
     doc.build(elements)
     return temp_file.name
 
+st.markdown("""
+<div style="
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    padding:15px 30px;
+    backdrop-filter: blur(14px);
+    background: rgba(15, 23, 42, 0.85);
+    color: white;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    z-index:999;
+    font-weight:600;
+">
+    <div>🍅 AgroScan AI</div>
+    <div>AI Powered Crop Intelligence</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height:90px;'></div>", unsafe_allow_html=True)
+
 st.markdown("<h1 style='margin-top:20px;'>🍅 AgroScan AI</h1>", unsafe_allow_html=True)
+st.markdown("<p style='opacity:0.7;'>AI-powered Tomato Disease Detection</p>", unsafe_allow_html=True)
 
 uploaded_file = st.file_uploader(
     T["upload"],
@@ -255,9 +230,7 @@ uploaded_file = st.file_uploader(
 
 
 if uploaded_file is not None:
-
     image = Image.open(uploaded_file)
-
     col1, col2 = st.columns([1.1, 1])
 
     with col1:
